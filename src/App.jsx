@@ -138,10 +138,10 @@ function HomeScreen({ onNewGame, onResume, onHistory, hasActive, gameCount }) {
 
 function SetupScreen({ onStart, onBack, customCourses }) {
   const [players, setPlayers] = useState([
-    { name: "Justin", hdcp: 2 },
-    { name: "Cole", hdcp: 15 },
-    { name: "Jordan", hdcp: 20 },
-    { name: "Andy", hdcp: 8 },
+    { name: "Player 1", hdcp: 0 },
+    { name: "Player 2", hdcp: 0 },
+    { name: "Player 3", hdcp: 0 },
+    { name: "Player 4", hdcp: 0 },
   ]);
   const [courseIdx, setCourseIdx] = useState(0);
   const [customPars, setCustomPars] = useState([...COURSES[3].pars]);
@@ -282,36 +282,24 @@ function ScorecardScreen({ game, setGame, onFinish, onDelete, onBack }) {
   const par = course.pars[activeHole];
 
   const getGrossTotal = (pi) => sumArr(scores[pi]);
-  const getNetTotal = (pi) => {
-    let net = 0;
+  const getGrossToPar = (pi) => {
+    let grossToPar = 0;
     for (let h = 0; h < 18; h++) {
       if (scores[pi][h]) {
-        net += scores[pi][h] - getStrokesOnHole(players[pi].hdcp, h);
+        grossToPar += scores[pi][h] - course.pars[h];
       }
     }
-    return net;
+    return grossToPar;
   };
-  const getNetOnHole = (pi, h) => {
-    if (!scores[pi][h]) return null;
-    return scores[pi][h] - getStrokesOnHole(players[pi].hdcp, h);
-  };
-  const getRelPar = (pi) => {
-    let rel = 0;
-    for (let h = 0; h < 18; h++) {
-      if (scores[pi][h]) {
-        const net = scores[pi][h] - getStrokesOnHole(players[pi].hdcp, h);
-        rel += net - course.pars[h];
-      }
-    }
-    return rel;
-  };
+  const getNetToPar = (pi) => getGrossToPar(pi) - players[pi].hdcp;
+  const getHolesPlayed = (pi) => scores[pi].filter(s => s > 0).length;
 
-  const standings = players.map((p, i) => ({ ...p, idx: i, gross: getGrossTotal(i), net: getNetTotal(i), relPar: getRelPar(i) }))
+  const standings = players.map((p, i) => ({ ...p, idx: i, gross: getGrossTotal(i), grossToPar: getGrossToPar(i), netToPar: getNetToPar(i), holesPlayed: getHolesPlayed(i) }))
     .sort((a, b) => {
-      if (a.net === 0 && b.net === 0) return 0;
-      if (a.net === 0) return 1;
-      if (b.net === 0) return -1;
-      return a.relPar - b.relPar;
+      if (a.holesPlayed === 0 && b.holesPlayed === 0) return 0;
+      if (a.holesPlayed === 0) return 1;
+      if (b.holesPlayed === 0) return -1;
+      return a.netToPar - b.netToPar;
     });
 
   return (
@@ -328,16 +316,27 @@ function ScorecardScreen({ game, setGame, onFinish, onDelete, onBack }) {
 
       {/* Leaderboard Strip */}
       <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 8px", marginBottom: 16 }}>
-        {standings.map((p, rank) => (
-          <div key={p.idx} style={{ minWidth: 80, background: rank === 0 && p.net > 0 ? "#f8f4e8" : "#f8f8f6", borderRadius: 8, padding: "8px 10px", textAlign: "center", border: rank === 0 && p.net > 0 ? "2px solid #c8a951" : "1px solid #e8e4d8", flex: "1 0 auto" }}>
-            <div style={{ fontSize: 10, color: "#7a8a7a", marginBottom: 2 }}>{rank === 0 ? "🏆" : `#${rank + 1}`}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#1a3a1a", whiteSpace: "nowrap" }}>{p.name}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: p.relPar < 0 ? "#b22" : p.relPar === 0 ? "#1a3a1a" : "#4a6a4a" }}>
-              {p.net === 0 ? "E" : p.relPar === 0 ? "E" : p.relPar > 0 ? `+${p.relPar}` : p.relPar}
+        {standings.map((p, rank) => {
+          const fmtNet = p.holesPlayed === 0 ? "-" : p.netToPar === 0 ? "E" : p.netToPar > 0 ? `+${p.netToPar}` : p.netToPar;
+          const fmtGross = p.holesPlayed === 0 ? "-" : p.grossToPar === 0 ? "E" : p.grossToPar > 0 ? `+${p.grossToPar}` : p.grossToPar;
+          return (
+            <div key={p.idx} style={{ minWidth: 80, background: rank === 0 && p.holesPlayed > 0 ? "#f8f4e8" : "#f8f8f6", borderRadius: 8, padding: "8px 10px", textAlign: "center", border: rank === 0 && p.holesPlayed > 0 ? "2px solid #c8a951" : "1px solid #e8e4d8", flex: "1 0 auto" }}>
+              <div style={{ fontSize: 10, color: "#7a8a7a", marginBottom: 2 }}>{rank === 0 ? "🏆" : `#${rank + 1}`}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1a3a1a", whiteSpace: "nowrap" }}>{p.name}</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 4 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: p.holesPlayed === 0 ? "#999" : p.grossToPar < 0 ? "#b22" : p.grossToPar === 0 ? "#1a3a1a" : "#4a6a4a" }}>{fmtGross}</div>
+                  <div style={{ fontSize: 9, color: "#999" }}>Gross</div>
+                </div>
+                <div style={{ width: 1, background: "#e0dcd4", margin: "2px 0" }} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: p.holesPlayed === 0 ? "#999" : p.netToPar < 0 ? "#b22" : p.netToPar === 0 ? "#1a3a1a" : "#4a6a4a" }}>{fmtNet}</div>
+                  <div style={{ fontSize: 9, color: "#999" }}>Net</div>
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 10, color: "#999" }}>Net {p.net || "-"}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Tabs */}
@@ -391,7 +390,7 @@ function ScorecardScreen({ game, setGame, onFinish, onDelete, onBack }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <button onClick={() => updateScore(pi, activeHole, Math.max(0, sc - 1))} style={{ ...stepBtn, width: 32, height: 32 }}>−</button>
                   <div style={{ width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, background: !sc ? "#e4e0d8" : grossRel < -1 ? "#c8a951" : grossRel === -1 ? "#b22" : grossRel === 0 ? "#1a3a1a" : grossRel === 1 ? "#2d5a8d" : grossRel === 2 ? "#5a8abc" : "#78a", color: !sc ? "#999" : "#fff" }}>
-                    {sc || "E"}
+                    {sc || "-"}
                   </div>
                   <button onClick={() => updateScore(pi, activeHole, sc + 1)} style={{ ...stepBtn, width: 32, height: 32 }}>+</button>
                 </div>
@@ -463,16 +462,15 @@ function ScorecardScreen({ game, setGame, onFinish, onDelete, onBack }) {
                 <tr key={pi} style={{ background: pi % 2 === 0 ? "#fff" : "#fafaf6" }}>
                   <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "nowrap" }}>{p.name} ({p.hdcp})</td>
                   {scores[pi].slice(0, 9).map((s, h) => {
-                    const r = s ? s - course.pars[h] + getStrokesOnHole(p.hdcp, h) : null;
-                    return <td key={h} style={{ ...tdStyle, ...(s ? scoreColor(s - getStrokesOnHole(p.hdcp, h) - course.pars[h]) : {}) }}>{s || ""}</td>;
+                    return <td key={h} style={{ ...tdStyle, ...(s ? scoreColor(s - course.pars[h]) : {}) }}>{s || ""}</td>;
                   })}
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{sumArr(scores[pi].slice(0, 9)) || ""}</td>
                   {scores[pi].slice(9).map((s, h) => (
-                    <td key={h + 9} style={{ ...tdStyle, ...(s ? scoreColor(s - getStrokesOnHole(p.hdcp, h + 9) - course.pars[h + 9]) : {}) }}>{s || ""}</td>
+                    <td key={h + 9} style={{ ...tdStyle, ...(s ? scoreColor(s - course.pars[h + 9]) : {}) }}>{s || ""}</td>
                   ))}
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{sumArr(scores[pi].slice(9)) || ""}</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{getGrossTotal(pi) || ""}</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: "#b22" }}>{getNetTotal(pi) || ""}</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#b22" }}>{getHolesPlayed(pi) > 0 ? (getNetToPar(pi) === 0 ? "E" : getNetToPar(pi) > 0 ? `+${getNetToPar(pi)}` : getNetToPar(pi)) : ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -504,19 +502,13 @@ function HistoryScreen({ games, onBack, onDeleteGame }) {
 
       {games.map((g, gi) => {
         const standings = g.players.map((p, pi) => {
-          let net = 0;
+          let grossToPar = 0;
           for (let h = 0; h < 18; h++) {
-            if (g.scores[pi][h]) net += g.scores[pi][h] - getStrokesOnHole(p.hdcp, h);
+            if (g.scores[pi][h]) grossToPar += g.scores[pi][h] - g.course.pars[h];
           }
-          let relPar = 0;
-          for (let h = 0; h < 18; h++) {
-            if (g.scores[pi][h]) {
-              const n = g.scores[pi][h] - getStrokesOnHole(p.hdcp, h);
-              relPar += n - g.course.pars[h];
-            }
-          }
-          return { ...p, idx: pi, gross: sumArr(g.scores[pi]), net, relPar };
-        }).sort((a, b) => a.relPar - b.relPar);
+          const netToPar = grossToPar - p.hdcp;
+          return { ...p, idx: pi, gross: sumArr(g.scores[pi]), grossToPar, netToPar };
+        }).sort((a, b) => a.netToPar - b.netToPar);
 
         const winner = standings[0];
         const date = new Date(g.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -530,8 +522,8 @@ function HistoryScreen({ games, onBack, onDeleteGame }) {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 12, color: "#c8a951", fontWeight: 600 }}>🏆 {winner.name}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: winner.relPar < 0 ? "#b22" : "#1a3a1a" }}>
-                  {winner.relPar === 0 ? "E" : winner.relPar > 0 ? `+${winner.relPar}` : winner.relPar}
+                <div style={{ fontSize: 14, fontWeight: 700, color: winner.netToPar < 0 ? "#b22" : "#1a3a1a" }}>
+                  {winner.netToPar === 0 ? "E" : winner.netToPar > 0 ? `+${winner.netToPar}` : winner.netToPar}
                 </div>
               </div>
             </button>
@@ -541,7 +533,7 @@ function HistoryScreen({ games, onBack, onDeleteGame }) {
                   <div key={si} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13 }}>
                     <span style={{ color: "#555" }}>{si + 1}. {s.name} ({s.hdcp} hdcp)</span>
                     <span style={{ fontWeight: 600 }}>
-                      Gross {s.gross} · Net {s.net} ({s.relPar === 0 ? "E" : s.relPar > 0 ? `+${s.relPar}` : s.relPar})
+                      Gross {s.gross} · Net {s.netToPar === 0 ? "E" : s.netToPar > 0 ? `+${s.netToPar}` : s.netToPar}
                     </span>
                   </div>
                 ))}
@@ -602,7 +594,6 @@ export default function MajorsApp() {
     const updated = [...games, activeGame];
     setGames(updated);
     saveGames(updated);
-    // Save custom course if it was truly custom
     const knownNames = COURSES.map(c => c.name);
     const savedCustomNames = customCourses.map(c => c.name);
     if (!knownNames.includes(activeGame.course.name) && !savedCustomNames.includes(activeGame.course.name)) {
